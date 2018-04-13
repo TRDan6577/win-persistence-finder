@@ -25,10 +25,10 @@
         $KeyValue = $(Get-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -name 'SCRNSAVE.EXE' -ErrorAction Stop).'SCRNSAVE.EXE'
         $SignatureResults = Get-AuthenticodeSignature -FilePath $KeyValue
         $MD5 = $(Get-FileHash -Path $KeyValue -Algorithm MD5).Hash
-        $SHA256 = $(Get-FileHash -Path $KeyValue -Algorithm SHA256).Hash
+        $SHA1 = $(Get-FileHash -Path $KeyValue -Algorithm SHA1).Hash
     
         return New-PersistanceFinderObject -PersistanceMethod 'Screen Saver' -Path `
-        $Path -Value $KeyValue -MD5 $MD5 -SHA256 $SHA256 -ValidSignature `
+        $Path -Value $KeyValue -MD5 $MD5 -SHA1 $SHA1 -ValidSignature `
         $SignatureResults.Status -SignerCertificate $SignatureResults.SignerCertificate `
         -AttackMatrixNumber $MatrixNumber
     }catch{  # If the key doesn't exist, return null
@@ -63,8 +63,8 @@ Function New-PersistanceFinderObject {
     .PARAMETER MD5
         The MD5 hash value of the file
 
-    .PARAMETER SHA256
-        The SHA256 hash value of the file
+    .PARAMETER SHA1
+        The SHA1 hash value of the file
 
     .PARAMETER ValidSignature
         Tells us if the binary in the path (or value) is signed.
@@ -94,7 +94,7 @@ Function New-PersistanceFinderObject {
         [string]$MD5,
 
         [Parameter(Mandatory=$True)]
-        [string]$SHA256,
+        [string]$SHA1,
 
         [Parameter(Mandatory=$False)]
         [string]$ValidSignature,
@@ -111,7 +111,7 @@ Function New-PersistanceFinderObject {
     $object | Add-Member -MemberType NoteProperty -Name Path -Value $Path
     $object | Add-Member -MemberType NoteProperty -Name Value -Value $Value
     $object | Add-Member -MemberType NoteProperty -Name MD5 -Value $MD5
-    $object | Add-Member -MemberType NoteProperty -Name SHA256 -Value $SHA256
+    $object | Add-Member -MemberType NoteProperty -Name SHA1 -Value $SHA1
     $object | Add-Member -MemberType NoteProperty -Name ValidSignature -Value $ValidSignature
     $object | Add-Member -MemberType NoteProperty -Name SignerCertificate -Value $SignerCertificate
     $object | Add-Member -MemberType NoteProperty -Name MitreAttackMatrixNo -Value $AttackMatrixNumber
