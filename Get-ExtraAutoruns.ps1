@@ -69,6 +69,8 @@ Function Get-AccessibilityFeatures {
         License: MPL v2.0
     #>
 
+    # TODO: Add the registry keys method
+
     $MatrixNumber = "T1015"
     $PersistenceMethod = "Accessibility Features"
 
@@ -184,9 +186,14 @@ Function New-PersistenceFinderObject {
             return $null
         }
     }else{ # Case if we're dealing with a binary file
-        $SignatureResults = Get-AuthenticodeSignature -FilePath $Path
-        $MD5 = $(Get-FileHash -Path $Path -Algorithm MD5).Hash
-        $SHA1 = $(Get-FileHash -Path $Path -Algorithm SHA1).Hash
+        try{
+            $SignatureResults = Get-AuthenticodeSignature -FilePath $Path
+            $MD5 = $(Get-FileHash -Path $Path -Algorithm MD5).Hash
+            $SHA1 = $(Get-FileHash -Path $Path -Algorithm SHA1).Hash
+        }catch{
+            # If the file doesn't exist, return $null
+            return $null
+        }
     }
 
     # Create the object
