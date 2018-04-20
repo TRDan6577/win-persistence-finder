@@ -59,7 +59,14 @@ Function Get-AccessibilityFeatures {
             regedit.exe               (Registry Editor)
             Taskmgr.exe               (Task Manager)
 
-        <INSERT SOMETHING ABOUT REGISTRY KEYS HERE>
+        Additionally, adding a registry subkey for these accessibility features
+        under the Image File Execution Options registry key could also give an
+        attacker access to a system. By setting the value of the debugger subkey
+        to a program such as cmd.exe, an attacker could execute that accessibility
+        tool and launch the debugging program instead. For example, instead of
+        launching Sticky-Keys, the attacker would launch cmd.exe. This function
+        will check the Image File Execution Options key for any accessibility
+        subkeys with a subsequent debugger subkey.
 
     .LINK
         https://attack.mitre.org/wiki/Technique/T1015
@@ -73,12 +80,35 @@ Function Get-AccessibilityFeatures {
 
     $MatrixNumber = "T1015"
     $PersistenceMethod = "Accessibility Features"
+    $sys32 = "\system32\"
+    $IFEOPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\"
+    $AccessibilityObjects = @()
 
-    # Accessibility Paths
-    $AccessibilityPaths = $($env:windir + "\system32\sethc.exe"), `
-        $($env:windir + "\system32\utilman.exe"), $($env:windir + "\system32\osk.exe"),`
-        $($env:windir + "\system32\Magnify.exe"), $($env:windir + "\system32\Narrator.exe"),`
-        $($env:windir + "\system32\DisplaySwitch.exe"), $($env:windir + "\system32\AtBroker.exe")
+    # Accessibility programs
+    $AccessibilityPrograms = "sethc.exe", "utilman.exe", "osk.exe", "Magnify.exe", `
+        "Narrator.exe", "DisplaySwitch.exe", "AtBroker.exe"
+
+    # For each program, test for the existance of a key in the registry.
+    # If a key exists with the same name as the program, look for a debugger
+    # subkey.
+    ForEach ($Program in $AccessibilityPrograms){
+        if(Test-Path $($IFEOPath + $Program)){
+            try{
+                # If the following succeeds, that means a debugger key exists
+                $null = Get-ItemProperty -Path $($IFEOPath + $Program) -name "Debugger" -ErrorAction Stop
+                $AccessibilityObjects += New-PersistenceFinderObject -PersistenceMethod $PersistenceMethod `
+                    -Type $TypeReg -Path $($IFEOPath + $Program + "\Debugger") -AttackMatrixNumber $MatrixNumber
+            }catch{
+                continue  # Do nothing if there's no debugger subkey
+            }
+        }
+    }
+
+    # Accessibility program paths. All programs are in the sys32 dir
+    $AccessibilityPaths = @()
+    ForEach ($Program in $AccessibilityPrograms){
+        $AccessibilityPaths += $($env:windir + $sys32 + $Program)
+    }
 
     # Persistence Paths
     $PersistencePaths = $($env:windir + "\System32\WindowsPowerShell\v1.0\powershell.exe"),`
@@ -94,8 +124,7 @@ Function Get-AccessibilityFeatures {
     }
 
     # For each accessibility method, check to see if it matches an admin
-    # utility tool (see "Persistence Binaries" above in the function docs) 
-    $AccessibilityObjects = @()
+    # utility tool (see "Persistence Binaries" above in the function docs)
     ForEach ($Accessible in $AccessibilityPaths){
         $PersistenceObject = New-PersistenceFinderObject `
             -PersistenceMethod $PersistenceMethod -Type $TypeBin -Path `
@@ -147,9 +176,6 @@ Function New-PersistenceFinderObject {
         License: MPL v2.0
     #>
 
-    #TODO: Don't trust user. Check the inputs:
-    #     Make sure the path exists
-    #     Make sure the type is correct (if you can do this, then just set the type manually)
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$True)]
