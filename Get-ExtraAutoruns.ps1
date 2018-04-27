@@ -10,7 +10,7 @@ Function Get-ScreenSaverRegKeys {
 
     .DESCRIPTION
         This function checks to see the registry key
-        HKCU\Control Panel\Desktop\SCRNSAVE.exe exists. If it does exist, it
+        HKCU:\Control Panel\Desktop\SCRNSAVE.exe exists. If it does exist, it
         checks to see if it is signed. When the function returns, it returns
         a PersistenceFinderObject or null.
 
@@ -59,14 +59,14 @@ Function Get-AccessibilityFeatures {
             regedit.exe               (Registry Editor)
             Taskmgr.exe               (Task Manager)
 
-        Additionally, adding a registry subkey for these accessibility features
+        Additionally, adding a registry string value for these accessibility features
         under the Image File Execution Options registry key could also give an
-        attacker access to a system. By setting the value of the debugger subkey
+        attacker access to a system. By setting the value of the debugger string
         to a program such as cmd.exe, an attacker could execute that accessibility
         tool and launch the debugging program instead. For example, instead of
         launching Sticky-Keys, the attacker would launch cmd.exe. This function
         will check the Image File Execution Options key for any accessibility
-        subkeys with a subsequent debugger subkey.
+        string values with a subsequent debugger value.
 
     .LINK
         https://attack.mitre.org/wiki/Technique/T1015
@@ -90,7 +90,7 @@ Function Get-AccessibilityFeatures {
 
     # For each program, test for the existance of a key in the registry.
     # If a key exists with the same name as the program, look for a debugger
-    # subkey.
+    # value.
     ForEach ($Program in $AccessibilityPrograms){
         if(Test-Path $($IFEOPath + $Program)){
             try{
@@ -99,7 +99,7 @@ Function Get-AccessibilityFeatures {
                 $AccessibilityObjects += New-PersistenceFinderObject -PersistenceMethod $PersistenceMethod `
                     -Type $TypeReg -Path $($IFEOPath + $Program + "\Debugger") -AttackMatrixNumber $MatrixNumber
             }catch{
-                continue  # Do nothing if there's no debugger subkey
+                continue  # Do nothing if there's no debugger value
             }
         }
     }
@@ -141,6 +141,47 @@ Function Get-AccessibilityFeatures {
     }
 
     return $AccessibilityObjects
+}
+
+Function Get-AppCertDlls {
+    <#
+    .SYNOPSIS
+        This function grabs any registry values under the key 
+        HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\AppCertDlls
+        and displays them for the user.
+
+    .DESCRIPTION
+        HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\AppCertDlls
+        contains string values of paths that point to DLLs. If there are
+        any entries, these DLLs are loaded in to every process that calls
+        the following Windows API functions: CreateProcess, CreateProcessAsUser,
+        CreateProcessWithLoginW, CreateProcessWithTokenW, WinExec. This
+        function retrieves any AppCertDll registry keys or values and returns
+        them as PersistenceFinderObjects.
+
+    .LINK
+        https://attack.mitre.org/wiki/Technique/T1182
+
+    .NOTES
+        Author: Tom Daniels
+        License: MPL v2.0
+    #>
+
+    $Path = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\AppCertDlls"
+    $MatrixNumber = "T1182" # The Mitre Attack Matrix ID
+    $PersistenceObjects = @()
+    try{
+        # If the path exists, this gets a list of values under the AppCertDll key
+        $AppCertPaths = $(Get-Item $Path -ErrorAction Stop).Property 
+        ForEach ($AppCertPath in $AppCertPaths){
+            $PersistenceObjects += New-PersistenceFinderObject -PersistenceMethod "AppCertDlls" `
+                -Type $TypeReg -Path $($Path + "\" + $AppCertPath) -AttackMatrixNumber $MatrixNumber
+        }
+    }catch{ # The path doesn't exist
+        return $null
+    }
+    
+    return $PersistenceObjects
 }
 
 Function New-PersistenceFinderObject {
